@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+   <head>
+      <title>Selve Configurator</title>
+   </head>
+   <body>
+      <h1>Gateway</h1>
+      <li>Gateway State: {{ gateway.state }}</li>
+	  <li>Gateway FW Version: {{ gateway.fw_v }}</li>
+	  <li>Gateway Serial: {{ gateway.serial }}</li>
+	  <li>Gateway FW Version Spec: {{ gateway.fw_vspec }}</li>
+	  
+	  <h1>Devices</h1>
+     {{ devices }}
+   </body>
+</html>

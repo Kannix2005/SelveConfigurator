@@ -1,0 +1,21 @@
+name: "Selve configurator"
+description: "A configurator for the Selve USB-RF Gateway"
+version: "1.0.25"
+slug: "selve_configurator"
+arch:
+  - aarch64
+  - amd64
+  - armhf
+  - armv7
+  - i386
+startup: before
+init: false
+ports:
+  8000/tcp: 8000
+webui: "http://[HOST]:[PORT:8000]/"
+#devices: [PROTO:device_port]
+options:
+  device_port: "/dev/ttyUSB0"
+schema:
+  device_port: str
+uart: true
