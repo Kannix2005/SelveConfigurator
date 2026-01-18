@@ -1,0 +1,10 @@
+.git
+.gitignore
+memory-bank
+frontend
+frontend-src/node_modules
+frontend-src/dist
+frontend-src/.quasar
+frontend-src/.vscode
+__pycache__/
+*.pyc

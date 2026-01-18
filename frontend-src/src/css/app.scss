@@ -1,0 +1,31 @@
+// app global css in SCSS form
+
+.row-equal-width {
+  .row {
+    background: rgba(#aa0, 0.1);
+  }
+  .row > div {
+    padding: 10px 15px;
+    background: rgba(#999, 0.15);
+    border: 1px solid rgba(#999, 0.2);
+  }
+  .row + .row {
+    margin-top: 1rem;
+  }
+}
+
+.h1 {
+  font-weight: 300;
+  font-size: 22px;
+  margin: 2px 12px 14px 14px;
+  line-height: 140%;
+  font-family: "Open sans", sans-serif;
+}
+
+.shadow-box {
+  width: 90px;
+  height: 90px;
+  margin: 25px;
+  border-radius: 50%;
+  font-size: 12px;
+}

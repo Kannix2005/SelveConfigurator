@@ -1,0 +1,20 @@
+{
+  "version": "2.0.0",
+  "command": "quasar",
+  "tasks": [
+    {
+      "label": "quasarbuild",
+      "type": "shell",
+      "command": "quasar build"
+    },
+    {
+      "label": "quasardev",
+      "type": "shell",
+      "command": "quasar serve &"
+    },
+    {
+      "label": "buildandrun",
+      "dependsOn": ["quasarbuild", "quasardev"]
+    }
+  ]
+}

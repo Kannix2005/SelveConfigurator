@@ -1,0 +1,15 @@
+{
+  "editor.bracketPairColorization.enabled": true,
+  "editor.guides.bracketPairs": true,
+  "editor.formatOnSave": true,
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
+
+  "typescript.tsdk": "node_modules/typescript/lib",
+  "editor.codeActionsOnSave": ["source.fixAll.eslint"],
+  "eslint.validate": ["javascript", "javascriptreact", "typescript", "vue"],
+  "github.copilot.advanced": {
+    "debug.overrideEngine": "codegen",
+    "debug.testOverrideProxyUrl": "http://localhost:5000",
+    "debug.overrideProxyUrl": "http://localhost:5000"
+  }
+}

@@ -1,33 +1,42 @@
 ARG BUILD_FROM
+
+# ---------- Frontend build stage ----------
+FROM node:18-alpine AS frontend-builder
+WORKDIR /app
+
+# Install and cache deps first
+COPY frontend-src/package*.json ./
+COPY frontend-src/yarn.lock ./
+RUN npm ci
+
+# Build Quasar SPA
+COPY frontend-src/ .
+RUN npm run build
+
+
+# ---------- Final runtime image ----------
 FROM $BUILD_FROM
 
-# Install requirements for add-on
-RUN \
-  apk add --no-cache \
-    python3 py3-pip
-    #nodejs npm
+# Install Python runtime
+RUN apk add --no-cache python3 py3-pip
 
-# Python 3 HTTP Server serves the current working dir
-# So let's set it to our add-on persistent data directory.
-WORKDIR /
+WORKDIR /app
 
-# Copy data for add-on
-COPY . /
-RUN chmod a+x /run.sh
-RUN chmod 777 /run.sh
+# Backend dependencies
+COPY requirements.txt ./
+RUN pip3 install --no-cache-dir -r requirements.txt
 
-RUN pip3 install python-selve-new
-RUN pip3 install requests
-RUN pip3 install flask
-RUN pip3 install Flask-Cors
+# Application sources
+COPY run.py ./
+COPY run.sh ./
+COPY backend ./backend
+COPY webapp ./webapp
+COPY config.yaml ./
+COPY index.html ./
 
-RUN pip3 show python-selve-new
+# Built frontend bundle served by Flask
+COPY --from=frontend-builder /app/dist/spa ./frontend
 
-WORKDIR /frontend
+RUN chmod a+x /app/run.sh
 
-#RUN npm install
-#RUN npm run build
-
-WORKDIR /
-
-CMD [ "/run.sh" ]
+CMD [ "/app/run.sh" ]
