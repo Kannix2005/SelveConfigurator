@@ -1,6 +1,6 @@
-name: "Selve configurator"
-description: "A configurator for the Selve USB-RF Gateway"
-version: "1.1.6"
+name: "Selve Configurator"
+description: "Web-based configurator for the Selve USB-RF Gateway – manage devices, groups, sensors, senders, IVEO controllers, senSim, firmware, and gateway settings."
+version: "2.0.0"
 slug: "selve_configurator"
 arch:
   - aarch64

@@ -88,16 +88,16 @@
             </span>
           </q-td>
           <q-td key="wind" :props="props">
-            <q-badge color="info">{{ props.row.values?.wind ?? '-' }}</q-badge>
+            <q-badge color="info">{{ props.row.values?.wind_digital ?? '-' }}</q-badge>
           </q-td>
           <q-td key="rain" :props="props">
-            <q-icon :name="props.row.values?.rain ? 'water_drop' : 'wb_sunny'" :color="props.row.values?.rain ? 'blue' : 'amber'" />
+            <q-icon :name="props.row.values?.rain_digital ? 'water_drop' : 'wb_sunny'" :color="props.row.values?.rain_digital ? 'blue' : 'amber'" />
           </q-td>
           <q-td key="temp" :props="props">
-            {{ props.row.values?.temperature ?? '-' }}°C
+            {{ props.row.values?.temp_digital ?? '-' }}°C
           </q-td>
           <q-td key="light" :props="props">
-            {{ props.row.values?.light ?? '-' }} lux
+            {{ props.row.values?.light_digital ?? '-' }} lux
           </q-td>
           <q-td key="actions" :props="props">
             <div class="q-gutter-xs">

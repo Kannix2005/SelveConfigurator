@@ -148,12 +148,34 @@ export default defineComponent({
       filter: ref(""),
       columns,
       groupData: [],
+      availableDevices: [],
     };
   },
   mounted() {
     this.loadData();
+    this.loadDevices();
   },
   methods: {
+    loadDevices() {
+      axios
+        .get("/api/devices")
+        .then((val) => {
+          console.log("Devices loaded:", val);
+          this.availableDevices = val.data.map(device => ({
+            label: `${device.id} - ${device.name || 'Unnamed Device'}`,
+            value: device.id
+          }));
+        })
+        .catch((err) => {
+          console.log(err);
+          this.$q.notify({
+            color: 'negative',
+            message: 'Error loading devices: ' + err.toString(),
+            icon: 'error'
+          });
+        });
+    },
+
     loadData() {
       this.loading = true;
       axios
@@ -219,7 +241,7 @@ export default defineComponent({
     createGroupDialog() {
       this.$q.dialog({
         title: 'Create New Group',
-        message: 'Enter group details:',
+        message: 'Enter group name:',
         prompt: {
           model: '',
           type: 'text',
@@ -228,21 +250,30 @@ export default defineComponent({
         cancel: true,
         persistent: true
       }).onOk(name => {
-        // Prompt for device IDs
-        this.$q.dialog({
-          title: 'Add Devices to Group',
-          message: 'Enter device IDs (comma separated):',
-          prompt: {
-            model: '',
-            type: 'text',
-            label: 'Device IDs (e.g., 1,2,3)',
-          },
-          cancel: true,
-          persistent: true
-        }).onOk(deviceIdsStr => {
-          const device_ids = deviceIdsStr.split(',').map(id => parseInt(id.trim())).filter(id => !isNaN(id));
-          this.createGroup(name, device_ids);
-        });
+        // Show device multi-select dialog
+        this.showDeviceSelectDialog(name, []);
+      });
+    },
+
+    showDeviceSelectDialog(groupName, currentDeviceIds, isEdit = false, groupId = null) {
+      const selectedDevices = ref(currentDeviceIds);
+      
+      this.$q.dialog({
+        title: 'Select Devices',
+        message: 'Choose devices for this group:',
+        options: {
+          type: 'checkbox',
+          model: selectedDevices.value,
+          items: this.availableDevices
+        },
+        cancel: true,
+        persistent: true
+      }).onOk(selectedIds => {
+        if (isEdit) {
+          this.updateGroup(groupId, groupName, selectedIds);
+        } else {
+          this.createGroup(groupName, selectedIds);
+        }
       });
     },
 
@@ -285,20 +316,8 @@ export default defineComponent({
         cancel: true,
         persistent: true
       }).onOk(name => {
-        this.$q.dialog({
-          title: 'Edit Device IDs',
-          message: 'Enter device IDs (comma separated):',
-          prompt: {
-            model: group.device_ids ? group.device_ids.join(',') : '',
-            type: 'text',
-            label: 'Device IDs',
-          },
-          cancel: true,
-          persistent: true
-        }).onOk(deviceIdsStr => {
-          const device_ids = deviceIdsStr.split(',').map(id => parseInt(id.trim())).filter(id => !isNaN(id));
-          this.updateGroup(group.id, name, device_ids);
-        });
+        // Show device multi-select dialog
+        this.showDeviceSelectDialog(name, group.device_ids || [], true, group.id);
       });
     },
 

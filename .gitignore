@@ -1,1 +1,10 @@
 /.vscode
+.venv
+__pycache__/
+*.pyc
+*.env
+frontend/
+memory-bank/
+frontend-src/node_modules/
+frontend-src/dist/
+frontend-src/.quasar/

@@ -48,10 +48,33 @@
           exact
         />
         <q-route-tab
+          name="SenSim"
+          label="SenSim"
+          icon="science"
+          to="/sensim"
+          exact
+        />
+        <q-separator />
+        <q-item-label header> System </q-item-label>
+        <q-route-tab
           name="Gateway"
           label="Gateway"
           icon="router"
           to="/gateway"
+          exact
+        />
+        <q-route-tab
+          name="Firmware"
+          label="Firmware"
+          icon="system_update"
+          to="/firmware"
+          exact
+        />
+        <q-route-tab
+          name="XMLLog"
+          label="XML Log"
+          icon="code"
+          to="/xmllog"
           exact
         />
         <q-route-tab

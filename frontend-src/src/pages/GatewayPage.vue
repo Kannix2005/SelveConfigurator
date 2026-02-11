@@ -1,499 +1,273 @@
 <template>
-  <q-page class="justify-evenly">
-    <div class="row">
-      <div class="col-6">
-        <q-list bordered class="rounded-borders" padding>
-          <q-item-label header>Gateway state</q-item-label>
-          <div v-for="(item, key) in gatewayData" v-bind:key="key" class="">
-            <q-expansion-item
-              :label="labelkeyGateway(key, item)['label']"
-              :icon="labelkeyGateway(key, item)['icon']"
-              :header-class="labelkeyGateway(key, item)['headerclass']"
-              :disable="labelkeyGateway(key, item)['disable']"
-              :caption="labelkeyGateway(key, item)['caption']"
-              :hidden="labelkeyGateway(key, item)['hidden']"
-            ></q-expansion-item>
-          </div>
-        </q-list>
+  <q-page class="q-pa-md">
+    <div class="row items-center q-mb-md">
+      <div class="text-h5">Gateway</div>
+      <q-space />
+      <q-btn color="primary" label="Refresh" icon="refresh" @click="loadGatewayData" :loading="loading" />
+    </div>
+
+    <div class="row q-gutter-md">
+      <!-- Left Column: Status -->
+      <div class="col-12 col-md-5">
+        <q-card flat bordered class="q-mb-md">
+          <q-card-section>
+            <div class="text-subtitle1 q-mb-sm">Gateway Status</div>
+            <q-list dense separator>
+              <q-item>
+                <q-item-section avatar><q-icon name="tag" color="primary" /></q-item-section>
+                <q-item-section>
+                  <q-item-label caption>Firmware Version</q-item-label>
+                  <q-item-label>{{ gw.version || '-' }}</q-item-label>
+                </q-item-section>
+              </q-item>
+              <q-item>
+                <q-item-section avatar><q-icon name="fingerprint" color="primary" /></q-item-section>
+                <q-item-section>
+                  <q-item-label caption>Serial Number</q-item-label>
+                  <q-item-label>{{ gw.serial || '-' }}</q-item-label>
+                </q-item-section>
+              </q-item>
+              <q-item>
+                <q-item-section avatar><q-icon name="info" color="primary" /></q-item-section>
+                <q-item-section>
+                  <q-item-label caption>Spec / State</q-item-label>
+                  <q-item-label>{{ gw.spec || '-' }}</q-item-label>
+                </q-item-section>
+              </q-item>
+              <q-item>
+                <q-item-section avatar><q-icon name="thermostat" color="orange" /></q-item-section>
+                <q-item-section>
+                  <q-item-label caption>Module Temperature</q-item-label>
+                  <q-item-label>{{ gw.temperature !== null ? gw.temperature + '°C' : 'N/A' }}</q-item-label>
+                </q-item-section>
+              </q-item>
+            </q-list>
+          </q-card-section>
+        </q-card>
+
+        <!-- Duty Cycle -->
+        <q-card flat bordered class="q-mb-md">
+          <q-card-section>
+            <div class="text-subtitle1 q-mb-sm">Duty Cycle</div>
+            <q-list dense separator>
+              <q-item v-for="(val, key) in gw.duty" :key="key">
+                <q-item-section>
+                  <q-item-label caption>{{ key }}</q-item-label>
+                  <q-item-label>{{ formatValue(val) }}</q-item-label>
+                </q-item-section>
+              </q-item>
+              <q-item v-if="!gw.duty || Object.keys(gw.duty).length === 0">
+                <q-item-section class="text-grey">No duty cycle data</q-item-section>
+              </q-item>
+            </q-list>
+          </q-card-section>
+        </q-card>
+
+        <!-- RF Information -->
+        <q-card flat bordered class="q-mb-md">
+          <q-card-section>
+            <div class="text-subtitle1 q-mb-sm">RF Information</div>
+            <q-list dense separator>
+              <q-item v-for="(val, key) in gw.rf" :key="key">
+                <q-item-section>
+                  <q-item-label caption>{{ key }}</q-item-label>
+                  <q-item-label>{{ formatValue(val) }}</q-item-label>
+                </q-item-section>
+              </q-item>
+              <q-item v-if="!gw.rf || Object.keys(gw.rf).length === 0">
+                <q-item-section class="text-grey">No RF data</q-item-section>
+              </q-item>
+            </q-list>
+          </q-card-section>
+        </q-card>
       </div>
 
-      <div class="col-6">
-        <q-list bordered padding>
-          <q-item-label header>Gateway functions</q-item-label>
-          <q-item tag="label" v-ripple>
-            <q-item-section>
-              <q-item-label>Enable gateway LEDs</q-item-label>
-            </q-item-section>
-            <q-item-section side>
-              <q-toggle
-                color="blue"
-                v-model="valueLED"
-                val="battery"
-                @update:model-value="this.setGatewayLED(valueLED)"
-              />
-            </q-item-section>
-          </q-item>
-          <q-item tag="label" v-ripple>
-            <q-item-section>
-              <q-item-label>Reset gateway</q-item-label>
-            </q-item-section>
-            <q-item-section side>
-              <q-btn
-                color="amber"
-                label="Reset"
-                @click="this.resetGateway()"
-              ></q-btn>
-                     <q-separator />
-                     <q-item-label header>Advanced Gateway Info</q-item-label>
-                     <q-item tag="label" v-ripple>
-                       <q-item-section>
-                         <q-item-label>Duty Cycle Information</q-item-label>
-                       </q-item-section>
-                       <q-item-section side>
-                         <q-btn
-                           color="info"
-                           label="Show Duty Info"
-                           icon="bar_chart"
-                           @click="this.showDutyInfo()"
-                         ></q-btn>
-                       </q-item-section>
-                     </q-item>
-                     <q-item tag="label" v-ripple>
-                       <q-item-section>
-                         <q-item-label>RF Signal Quality</q-item-label>
-                       </q-item-section>
-                       <q-item-section side>
-                         <q-btn
-                           color="info"
-                           label="Show RF Info"
-                           icon="signal_cellular_alt"
-                           @click="this.showRFInfo()"
-                         ></q-btn>
-                       </q-item-section>
-                     </q-item>
-            </q-item-section>
-          </q-item>
-          <q-item tag="label" v-ripple>
-            <q-item-section>
-              <q-item-label>Set repeater forwarding</q-item-label>
-              <div class="text-h10">
-                <q-badge
-                  color="blue"
-                  :label="gatewayData.repeaterState"
-                  outline
-                  align="middle"
-                >
-                </q-badge>
+      <!-- Right Column: Functions -->
+      <div class="col-12 col-md-6">
+        <!-- LED Control -->
+        <q-card flat bordered class="q-mb-md">
+          <q-card-section>
+            <div class="row items-center">
+              <div>
+                <div class="text-subtitle1">LED Mode</div>
+                <div class="text-caption">Enable or disable the gateway status LEDs</div>
               </div>
-            </q-item-section>
-            <q-item-section side>
-              <q-btn
-                color="primary"
-                label="Set Repeater"
-                @click="this.setRepeater()"
-              ></q-btn>
-            </q-item-section>
-          </q-item>
-          <q-item tag="label" v-ripple>
-            <q-item-section>
-              <q-item-label>Set gateway events</q-item-label>
+              <q-space />
+              <q-toggle v-model="ledState" color="blue" @update:model-value="setLED" />
+            </div>
+          </q-card-section>
+        </q-card>
 
-              <q-checkbox
-                v-model="events.log"
-                label="Log"
-                @update:model-value="this.setEvents('log', events.log)"
-              />
-              <q-checkbox
-                v-model="events.device"
-                label="Device"
-                @update:model-value="this.setEvents('device', events.device)"
-              />
-              <q-checkbox
-                v-model="events.sensor"
-                label="Sensor"
-                @update:model-value="this.setEvents('sensor', events.sensor)"
-              />
-              <q-checkbox
-                v-model="events.sender"
-                label="Sender"
-                @update:model-value="this.setEvents('sender', events.sender)"
-              />
-              <q-checkbox
-                v-model="events.duty"
-                label="Duty Cycle"
-                @update:model-value="this.setEvents('duty', events.duty)"
-              />
-            </q-item-section>
-          </q-item>
-          <q-item tag="label" v-ripple>
-            <q-item-section>
-              <q-item-label>Factory reset Iveo channel</q-item-label>
-            </q-item-section>
-            <q-item-section side>
-              <q-btn
-                color="red"
-                label="Factory reset channel"
-                @click="this.iveoFactory()"
-              ></q-btn>
-            </q-item-section>
-          </q-item>
-          <q-item tag="label" v-ripple>
-            <q-item-section>
-              <q-item-label>Factory reset gateway</q-item-label>
+        <!-- Events -->
+        <q-card flat bordered class="q-mb-md">
+          <q-card-section>
+            <div class="text-subtitle1 q-mb-sm">Event Configuration</div>
+            <div class="row q-gutter-md">
+              <q-toggle v-model="events.log" label="Log Events" color="primary" @update:model-value="setEvents" />
+              <q-toggle v-model="events.device" label="Device Events" color="primary" @update:model-value="setEvents" />
+              <q-toggle v-model="events.sensor" label="Sensor Events" color="primary" @update:model-value="setEvents" />
+              <q-toggle v-model="events.sender" label="Sender Events" color="primary" @update:model-value="setEvents" />
+              <q-toggle v-model="events.duty" label="Duty Events" color="primary" @update:model-value="setEvents" />
+            </div>
+          </q-card-section>
+        </q-card>
 
-              <div class="text-h10">
-                <q-badge
-                  color="red"
-                  label="Deletes all devices --- DANGER!!!"
-                  align="middle"
-                >
-                </q-badge>
+        <!-- Forwarding/Repeater -->
+        <q-card flat bordered class="q-mb-md">
+          <q-card-section>
+            <div class="row items-center">
+              <div>
+                <div class="text-subtitle1">RF Forwarding / Repeater</div>
+                <div class="text-caption">Enable the gateway to forward/repeat RF commands</div>
               </div>
-            </q-item-section>
-            <q-item-section side>
-              <q-btn
-                color="red"
-                label="FACTORY RESET"
-                @click="this.factoryResetGateway()"
-              ></q-btn>
-            </q-item-section>
-          </q-item>
-        </q-list>
+              <q-space />
+              <q-toggle v-model="forwardingState" color="primary" @update:model-value="setForwarding" />
+            </div>
+          </q-card-section>
+        </q-card>
+
+        <!-- Connection Test -->
+        <q-card flat bordered class="q-mb-md">
+          <q-card-section>
+            <div class="row items-center q-gutter-md">
+              <div>
+                <div class="text-subtitle1">Connection Test</div>
+                <div class="text-caption">Ping the gateway to verify connection</div>
+              </div>
+              <q-space />
+              <q-btn color="info" label="Ping" icon="network_ping" @click="ping" :loading="pinging" />
+              <q-badge v-if="pingResult !== null" :color="pingResult ? 'positive' : 'negative'">
+                {{ pingResult ? 'OK' : 'FAIL' }}
+              </q-badge>
+            </div>
+          </q-card-section>
+        </q-card>
+
+        <!-- Reset Controls -->
+        <q-card flat bordered class="q-mb-md">
+          <q-card-section>
+            <div class="text-subtitle1 q-mb-sm">Gateway Controls</div>
+            <div class="row q-gutter-sm">
+              <q-btn color="amber" label="Reset Gateway" icon="restart_alt" @click="resetGateway" />
+            </div>
+          </q-card-section>
+        </q-card>
+
+        <!-- Danger Zone -->
+        <q-card flat bordered class="bg-red-1">
+          <q-card-section>
+            <div class="text-subtitle1 text-negative q-mb-sm">Danger Zone</div>
+            <div class="row q-gutter-sm">
+              <q-btn color="red" label="Factory Reset Iveo" icon="warning" @click="iveoFactory" />
+              <q-btn color="red" label="Factory Reset Gateway" icon="dangerous" @click="factoryReset">
+                <q-tooltip>Deletes ALL devices!</q-tooltip>
+              </q-btn>
+            </div>
+            <div class="text-caption text-negative q-mt-sm">Factory reset will delete all configured devices, groups, and settings!</div>
+          </q-card-section>
+        </q-card>
       </div>
     </div>
   </q-page>
 </template>
 
-<script>
-import { defineComponent } from "vue";
-import axios from "axios";
-import { useQuasar } from "quasar";
-import { ref } from "vue";
+<script setup>
+import { ref, reactive, onMounted } from 'vue'
+import { useQuasar } from 'quasar'
+import axios from 'axios'
 
-export default defineComponent({
-  name: "GatewayPage",
-  setup() {
-    let $q = useQuasar();
-    return { $q };
-  },
-  data() {
-    return {
-      gatewayData: [],
-      loading: ref(false),
-      valueLED: ref(true),
-      valueA: ref(true),
-      events: {
-        log: true,
-        device: true,
-        sensor: false,
-        sender: false,
-        duty: true,
-      },
-    };
-  },
-  methods: {
-    loadGatewayData() {
-      this.loading = true;
+const $q = useQuasar()
+const loading = ref(false)
+const ledState = ref(true)
+const forwardingState = ref(false)
+const pinging = ref(false)
+const pingResult = ref(null)
+const events = reactive({ log: true, device: true, sensor: false, sender: false, duty: true })
+const gw = reactive({ version: '', serial: '', spec: '', temperature: null, duty: {}, rf: {} })
 
-      axios
-        .get("/api/gatewayData")
-        .then((val) => {
-          this.gatewayData = val.data;
-        })
-        .catch((err) => {
-          console.log(err);
-          this.$notifyError(err.toString());
-        })
-        .finally(() => {
-          setTimeout(() => {
-            this.loading = false;
-          }, 300);
-        });
-      this.getEvents();
-      this.getGatewayLED();
-    },
+function formatValue(val) {
+  if (val == null) return '-'
+  if (typeof val === 'object') return JSON.stringify(val)
+  return String(val)
+}
 
-    labelkeyGateway(key, value) {
-      switch (key) {
-        case "state":
-          return {
-            label: "State",
-            icon: "signal_wifi_4_bar",
-            headerclass: "",
-            disable: true,
-            caption: value.toString(),
-          };
-        case "lastLogEvent":
-          return {
-            label: "Last Log Event",
-            icon: "timeline",
-            headerclass: "",
-            disable: true,
-            caption: value.toString(),
-          };
-        case "version":
-          return {
-            label: "Version",
-            icon: "tag",
-            headerclass: "",
-            disable: true,
-            caption: value.toString(),
-          };
-        case "serial":
-          return {
-            caption: value.toString(),
-            icon: "tag",
-            headerclass: "",
-            disable: true,
-            label: "Serial",
-          };
-        case "spec":
-          return {
-            caption: value.toString(),
-            icon: "tag",
-            headerclass: "",
-            disable: true,
-            label: "Spec",
-          };
-        case "duty":
-          return {
-            caption:
-              "Utilization: " +
-              value.utilization +
-              " Sending blocked: " +
-              value.sendingBlocked,
-            icon: value.sendingBlocked ? "report_problem" : "check",
-            headerclass: value.sendingBlocked ? "text-red" : "text-green",
-            disable: true,
-            label: "Duty",
-          };
-        case "worker":
-          return {
-            caption: value.state.toString(),
-            icon: "check",
-            headerclass: value.state === "Running" ? "text-green" : "text-red",
-            disable: true,
-            label: "Worker state",
-          };
-        case "port":
-          return {
-            caption: value.toString(),
-            icon: "power",
-            headerclass: "",
-            disable: true,
-            label: "Port",
-          };
-        case "queue":
-          return {
-            caption:
-              "Transmitting " +
-              value.txq.items +
-              " items, Recieved " +
-              value.rxq.items +
-              " items",
-            icon: "pan_tool",
-            headerclass: "",
-            disable: true,
-            label: "Queue state",
-          };
+async function loadGatewayData() {
+  loading.value = true
+  try {
+    const [gwRes, ledRes, evtRes, fwdRes, tempRes] = await Promise.all([
+      axios.get('/api/gatewayData').catch(() => ({ data: {} })),
+      axios.get('/api/gateway/led').catch(() => ({ data: {} })),
+      axios.get('/api/gateway/events').catch(() => ({ data: {} })),
+      axios.get('/api/gateway/forward').catch(() => ({ data: {} })),
+      axios.get('/api/gateway/temperature').catch(() => ({ data: {} })),
+    ])
+    const d = gwRes.data || {}
+    gw.version = d.version || ''
+    gw.serial = d.serial || ''
+    gw.spec = d.spec || ''
+    gw.duty = d.duty || {}
+    gw.rf = d.rf || {}
+    gw.temperature = tempRes.data?.temperature ?? null
+    ledState.value = !!ledRes.data?.ledState
+    forwardingState.value = !!fwdRes.data?.forwarding
+    const ev = evtRes.data || {}
+    events.log = ev.eventLogging ?? ev.log ?? ev.event_logging ?? true
+    events.device = ev.eventDevice ?? ev.device ?? ev.event_device ?? true
+    events.sensor = ev.eventSensor ?? ev.sensor ?? ev.event_sensor ?? false
+    events.sender = ev.eventSender ?? ev.sender ?? ev.event_sender ?? false
+    events.duty = ev.eventDuty ?? ev.duty ?? ev.event_duty ?? true
+  } catch (e) {
+    $q.notify({ color: 'negative', message: 'Failed to load gateway data', icon: 'error' })
+  } finally {
+    loading.value = false
+  }
+}
 
-        default:
-          return {
-            caption: value.toString(),
-            icon: "question_mark",
-            headerclass: "",
-            disable: true,
-            label: key,
-          };
-      }
-    },
+async function setLED(val) {
+  try { await axios.post('/api/gateway/led', { ledState: val }) }
+  catch (e) { $q.notify({ color: 'negative', message: 'Failed to set LED', icon: 'error' }) }
+}
 
-    resetGateway() {
-      this.loading = true;
-      axios
-        .get("/api/gateway/reset")
-        .then((val) => {
-          this.loadGatewayData();
-        })
-        .catch((err) => {
-          console.log(err);
-          this.$notifyError(err.toString());
-        })
-        .finally(() => {
-          setTimeout(() => {
-            this.loading = false;
-          }, 300);
-        });
-    },
-    factoryResetGateway() {
-      this.loading = true;
-      axios
-        .get("/api/gateway/factoryReset")
-        .then((val) => {
-          this.loadGatewayData();
-        })
-        .catch((err) => {
-          console.log(err);
-          this.$notifyError(err.toString());
-        })
-        .finally(() => {
-          setTimeout(() => {
-            this.loading = false;
-          }, 300);
-        });
-    },
-    iveoFactory() {
-      this.loading = true;
-      //show popup with security check and selection
-    },
-    setGatewayLED(val) {
-      this.loading = true;
-      axios
-        .post("/api/gateway/led", { ledState: val })
-        .then((val) => {
-          this.getGatewayLED();
-        })
-        .catch((err) => {
-          console.log(err);
-          this.$notifyError(err.toString());
-        })
-        .finally(() => {
-          setTimeout(() => {
-            this.loading = false;
-          }, 300);
-        });
-    },
-    getGatewayLED() {
-      this.loading = true;
-      axios
-        .get("/api/gateway/led")
-        .then((val) => {
-          this.valueLED = val.data.ledState;
-        })
-        .catch((err) => {
-          console.log(err);
-          this.$notifyError(err.toString());
-        })
-        .finally(() => {
-          setTimeout(() => {
-            this.loading = false;
-          }, 300);
-        });
-    },
-    setEvents(type, val) {
-      this.loading = true;
-      axios
-        .post("/api/gateway/events", { type: type, value: val })
-        .then((val) => {
-          this.getGatewayLED();
-        })
-        .catch((err) => {
-          console.log(err);
-          this.$notifyError(err.toString());
-        })
-        .finally(() => {
-          setTimeout(() => {
-            this.loading = false;
-          }, 300);
-        });
-    },
-    getEvents() {
-      this.loading = true;
-      axios
-        .get("/api/gateway/events")
-        .then((val) => {
-          this.events = val.data;
-        })
-        .catch((err) => {
-          console.log(err);
-          this.$notifyError(err.toString());
-        })
-        .finally(() => {
-          setTimeout(() => {
-            this.loading = false;
-          }, 300);
-        });
-    },
-    setRepeater(type, val) {
-      this.loading = true;
-      //show popup
-    },
-    getRepeater() {
-      this.loading = true;
-      axios
-        .get("/api/gateway/repeater")
-        .then((val) => {
-          this.repeaterState = val.data.repeaterState;
-        })
-        .catch((err) => {
-          console.log(err);
-          this.$notifyError(err.toString());
-        })
-        .finally(() => {
-          setTimeout(() => {
-            this.loading = false;
-          }, 300);
-        });
-    },
-    showDutyInfo() {
-      this.loading = true;
-      axios
-        .get("/api/gateway/duty")
-        .then((val) => {
-          const duty = val.data;
-          let message = '<div style="text-align: left;">';
-          message += `<b>Duty Mode:</b> ${duty.dutyMode ?? 'N/A'}<br>`;
-          message += `<b>RF Traffic:</b> ${duty.rfTraffic ?? 'N/A'}<br>`;
-          for (const [key, value] of Object.entries(duty)) {
-            if (key !== 'dutyMode' && key !== 'rfTraffic' && key !== 'name') {
-              message += `<b>${key}:</b> ${JSON.stringify(value)}<br>`;
-            }
-          }
-          message += '</div>';
-          this.$q.dialog({
-            title: 'Duty Cycle Information',
-            message: message,
-            html: true,
-          });
-        })
-        .catch((err) => {
-          console.log(err);
-          this.$q.notify({ color: 'negative', message: 'Error loading duty info', icon: 'error' });
-        })
-        .finally(() => {
-          this.loading = false;
-        });
-    },
-    showRFInfo() {
-      this.loading = true;
-      axios
-        .get("/api/gateway/rf")
-        .then((val) => {
-          const rf = val.data;
-          let message = '<div style="text-align: left;">';
-          message += `<b>Net Address:</b> ${rf.netAddress ?? 'N/A'}<br>`;
-          message += `<b>Reset Count:</b> ${rf.resetCount ?? 'N/A'}<br>`;
-          message += `<b>RF Base ID:</b> ${rf.rfBaseId ?? 'N/A'}<br>`;
-          message += `<b>RF Sensor ID:</b> ${rf.rfSensorId ?? 'N/A'}<br>`;
-          message += `<b>RF Iveo ID:</b> ${rf.rfIveoId ?? 'N/A'}<br>`;
-          message += '</div>';
-          this.$q.dialog({
-            title: 'RF Signal Information',
-            message: message,
-            html: true,
-          });
-        })
-        .catch((err) => {
-          console.log(err);
-          this.$q.notify({ color: 'negative', message: 'Error loading RF info', icon: 'error' });
-        })
-        .finally(() => {
-          this.loading = false;
-        });
-    },
-  },
-  mounted() {
-    this.loadGatewayData();
-  },
-});
+async function setEvents() {
+  try { await axios.post('/api/gateway/events', events) }
+  catch (e) { $q.notify({ color: 'negative', message: 'Failed to set events', icon: 'error' }) }
+}
+
+async function setForwarding(val) {
+  try { await axios.post('/api/gateway/forward', { state: val }); $q.notify({ color: 'positive', message: 'Forwarding updated', icon: 'check' }) }
+  catch (e) { $q.notify({ color: 'negative', message: 'Failed', icon: 'error' }) }
+}
+
+async function ping() {
+  pinging.value = true; pingResult.value = null
+  try { const { data } = await axios.get('/api/gateway/ping'); pingResult.value = !data.error }
+  catch (e) { pingResult.value = false }
+  finally { pinging.value = false }
+}
+
+async function resetGateway() {
+  $q.dialog({ title: 'Reset Gateway', message: 'Reset the gateway? This will not delete devices.', cancel: true })
+  .onOk(async () => {
+    try { await axios.get('/api/gateway/reset'); $q.notify({ color: 'positive', message: 'Gateway reset', icon: 'check' }); setTimeout(loadGatewayData, 2000) }
+    catch (e) { $q.notify({ color: 'negative', message: 'Reset failed', icon: 'error' }) }
+  })
+}
+
+async function iveoFactory() {
+  $q.dialog({ title: 'Factory Reset Iveo', message: 'Reset all Iveo channels? This will delete all learned Iveo devices.', cancel: true, ok: { label: 'Reset', color: 'negative' } })
+  .onOk(async () => {
+    try { await axios.post('/api/iveo/0/factoryReset'); $q.notify({ color: 'positive', message: 'Iveo factory reset done', icon: 'check' }) }
+    catch (e) { $q.notify({ color: 'negative', message: 'Failed', icon: 'error' }) }
+  })
+}
+
+async function factoryReset() {
+  $q.dialog({ title: 'FACTORY RESET GATEWAY', message: 'This will DELETE ALL devices, groups, and settings! Are you absolutely sure?', cancel: true, persistent: true, ok: { label: 'FACTORY RESET', color: 'negative' } })
+  .onOk(async () => {
+    try { await axios.get('/api/gateway/factoryReset'); $q.notify({ color: 'positive', message: 'Factory reset complete', icon: 'check' }); setTimeout(loadGatewayData, 3000) }
+    catch (e) { $q.notify({ color: 'negative', message: 'Failed', icon: 'error' }) }
+  })
+}
+
+onMounted(loadGatewayData)
 </script>

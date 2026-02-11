@@ -111,6 +111,24 @@ def _get_token() -> str:
 
 _ha_client = None
 
+# XML Log storage for the XML log viewer 
+_xml_log = []
+_xml_log_max = 200
+
+def _log_xml_call(domain, service, data, response):
+    """Log XML-RPC style calls for the XML log viewer."""
+    import datetime
+    entry = {
+        "timestamp": datetime.datetime.now().isoformat(),
+        "direction": "REQUEST",
+        "method": f"selve.GW.{service}",
+        "data": data,
+        "response": response,
+    }
+    _xml_log.append(entry)
+    if len(_xml_log) > _xml_log_max:
+        _xml_log.pop(0)
+
 def _get_ha_client() -> HAServiceClient:
     global _ha_client
     if _ha_client is None:
@@ -138,9 +156,19 @@ def ha_call(domain: str, service: str, data: dict | None = None):
     """Call HA service using dedicated thread pool with fresh event loops."""
     try:
         client = _get_client_for_request()
-        return _run_async(client.call_service(domain, service, data, return_response=True))
+        result = _run_async(client.call_service(domain, service, data, return_response=True))
+        # Log for XML viewer
+        try:
+            _log_xml_call(domain, service, data, result)
+        except Exception:
+            pass
+        return result
     except Exception as ex:
         _LOGGER.exception("HA service call failed: %s.%s - %s", domain, service, ex)
+        try:
+            _log_xml_call(domain, service, data, {"error": str(ex)})
+        except Exception:
+            pass
         return {"error": str(ex)}
 
 
@@ -255,26 +283,53 @@ def _device_ids():
 
 @app.route("/api/devices", methods=["GET"]) 
 def devices_list():
-    ids = _device_ids()
+    # Get Commeo devices
+    commeo_ids = _device_ids()
     rows = []
-    for did in ids:
+    
+    # Device type mapping
+    dev_type_map = {0: "UNKNOWN", 1: "SHUTTER", 2: "BLIND", 3: "AWNING", 4: "SWITCH", 5: "DIMMER", 6: "NIGHT_LIGHT", 7: "HEATING", 8: "COOLING", 9: "SWITCHING"}
+    
+    # Add Commeo devices
+    for did in commeo_ids:
         info_resp = ha_call(HA_DOMAIN, "device_get_info", {"id": int(did)}) or {}
         vals = ha_call(HA_DOMAIN, "device_get_values", {"id": int(did)}) or {}
         info = vals if isinstance(vals, dict) else {}
-        # Get name from info response (if available) or use default
         name = info_resp.get("name") or info_resp.get("label") or f"Device-{did}"
-        # Get device type and convert to string representation
         dev_type_raw = info_resp.get("deviceType") or info_resp.get("type") or 0
-        dev_type_map = {0: "Unknown", 1: "Shutter", 2: "Blind", 3: "Awning", 4: "Switch", 5: "Dimmer", 6: "Night Light", 7: "Heating", 8: "Cooling", 9: "Switching"}
-        dev_type = dev_type_map.get(int(dev_type_raw), f"Type-{dev_type_raw}") if dev_type_raw else "device"
+        dev_type = dev_type_map.get(int(dev_type_raw), f"TYPE_{dev_type_raw}")
         rows.append({
             "id": int(did),
             "type": dev_type,
             "typeId": dev_type_raw,
+            "deviceType": dev_type,
             "name": name,
             "info": info,
             "rawInfo": info_resp,
+            "communicationType": "COMMEO",
         })
+    
+    # Get Iveo devices
+    iveo_ids_resp = ha_call(HA_DOMAIN, "iveo_get_ids") or {}
+    iveo_ids = iveo_ids_resp.get("ids", []) if isinstance(iveo_ids_resp, dict) else []
+    
+    # Add Iveo devices
+    for iid in iveo_ids:
+        info_resp = ha_call(HA_DOMAIN, "iveo_get_type", {"id": int(iid)}) or {}
+        dev_type_raw = info_resp.get("device_type") or info_resp.get("deviceType") or info_resp.get("type") or 0
+        dev_type = dev_type_map.get(int(dev_type_raw), f"TYPE_{dev_type_raw}")
+        name = info_resp.get("name") or info_resp.get("label") or f"Iveo-{iid}"
+        rows.append({
+            "id": int(iid),
+            "type": dev_type,
+            "typeId": dev_type_raw,
+            "deviceType": dev_type,
+            "name": name,
+            "info": {"activity": info_resp.get("activity")},
+            "rawInfo": info_resp,
+            "communicationType": "IVEO",
+        })
+    
     return jsonify(rows)
 
 
@@ -355,6 +410,21 @@ def device_move_down(did: int):
 @app.route("/api/devices/<int:did>/stop", methods=["POST"]) 
 def device_move_stop(did: int):
     return _device_move(did, "stop")
+
+
+@app.route("/api/devices/<int:did>/moveUpForced", methods=["POST"])
+def device_move_up_forced(did: int):
+    return _device_move(did, "up", {"command": "FORCED"})
+
+
+@app.route("/api/devices/<int:did>/moveDownForced", methods=["POST"])
+def device_move_down_forced(did: int):
+    return _device_move(did, "down", {"command": "FORCED"})
+
+
+@app.route("/api/devices/<int:did>/stopForced", methods=["POST"])
+def device_move_stop_forced(did: int):
+    return _device_move(did, "stop", {"command": "FORCED"})
 
 
 @app.route("/api/devices/<int:did>/movePos1", methods=["POST"]) 
@@ -450,13 +520,14 @@ def group_stop(gid: int):
 def iveo_set_type(did: int):
     body = request.get_json(force=True) or {}
     type_label = body.get("type", "UNKNOWN")
-    resp = ha_call(HA_DOMAIN, "iveo_set_type", {"id": did, "type": type_label})
+    activity = int(body.get("activity", 1))
+    resp = ha_call(HA_DOMAIN, "iveo_set_type", {"id": did, "activity": activity, "type": type_label})
     return jsonify(resp or {"state": True})
 
 
 @app.route("/api/iveo/<int:did>/learn", methods=["POST"]) 
 def iveo_learn(did: int):
-    resp = ha_call(HA_DOMAIN, "iveo_learn")
+    resp = ha_call(HA_DOMAIN, "iveo_learn", {"id": did})
     return jsonify(resp or {"state": True})
 
 
@@ -510,8 +581,8 @@ def iveo_list():
         info = ha_call(HA_DOMAIN, "iveo_get_type", {"id": int(iid)}) or {}
         rows.append({
             "id": int(iid),
-            "type": info.get("type", "UNKNOWN"),
-            "name": f"Iveo-{iid}",
+            "type": info.get("device_type", "UNKNOWN"),
+            "name": info.get("name", f"Iveo-{iid}"),
         })
     return jsonify(rows)
 
@@ -530,15 +601,15 @@ def iveo_set_label(iid: int):
     return jsonify(resp or {"state": True})
 
 
-@app.route("/api/iveo/factoryReset", methods=["POST"])
-def iveo_factory_reset():
-    resp = ha_call(HA_DOMAIN, "iveo_factory_reset")
+@app.route("/api/iveo/<int:did>/factoryReset", methods=["POST"])
+def iveo_factory_reset(did: int):
+    resp = ha_call(HA_DOMAIN, "iveo_factory_reset", {"id": did})
     return jsonify(resp or {"state": True})
 
 
-@app.route("/api/iveo/teach", methods=["POST"])
-def iveo_teach():
-    resp = ha_call(HA_DOMAIN, "iveo_teach")
+@app.route("/api/iveo/<int:did>/teach", methods=["POST"])
+def iveo_teach(did: int):
+    resp = ha_call(HA_DOMAIN, "iveo_teach", {"id": did})
     return jsonify(resp or {"state": True})
 
 
@@ -563,7 +634,9 @@ def device_scan_result():
 
 @app.route("/api/devices/save", methods=["POST"])
 def device_save():
-    resp = ha_call(HA_DOMAIN, "device_save")
+    body = request.get_json(force=True) or {}
+    did = int(body.get("id", 0))
+    resp = ha_call(HA_DOMAIN, "device_save", {"id": did})
     return jsonify(resp or {"state": True})
 
 
@@ -768,6 +841,250 @@ def sender_teach_stop():
 def sender_teach_result():
     resp = ha_call(HA_DOMAIN, "sender_teach_result") or {}
     return jsonify(resp)
+
+
+# -------------------- Sensor Simulation (SenSim) endpoints --------------------
+@app.route("/api/sensim", methods=["GET"])
+def sensim_list():
+    ids = ha_call(HA_DOMAIN, "sensim_get_ids") or {}
+    id_list = ids.get("ids", []) if isinstance(ids, dict) else []
+    rows = []
+    for sid in id_list:
+        config = ha_call(HA_DOMAIN, "sensim_get_config", {"id": int(sid)}) or {}
+        vals = ha_call(HA_DOMAIN, "sensim_get_values", {"id": int(sid)}) or {}
+        rows.append({
+            "id": int(sid),
+            "name": config.get("name", f"SenSim-{sid}"),
+            "activity": config.get("activity", 0),
+            "values": vals,
+        })
+    return jsonify(rows)
+
+
+@app.route("/api/sensim/<int:sid>/config", methods=["GET"])
+def sensim_get_config(sid: int):
+    resp = ha_call(HA_DOMAIN, "sensim_get_config", {"id": sid}) or {}
+    return jsonify(resp)
+
+
+@app.route("/api/sensim/<int:sid>/setConfig", methods=["POST"])
+def sensim_set_config(sid: int):
+    body = request.get_json(force=True) or {}
+    activity = int(body.get("activity", 0))
+    resp = ha_call(HA_DOMAIN, "sensim_set_config", {"id": sid, "activity": activity})
+    return jsonify(resp or {"state": True})
+
+
+@app.route("/api/sensim/<int:sid>/setLabel", methods=["PUT"])
+def sensim_set_label(sid: int):
+    body = request.get_json(force=True) or {}
+    label = body.get("label", f"SenSim-{sid}")
+    resp = ha_call(HA_DOMAIN, "sensim_set_label", {"id": sid, "label": label})
+    return jsonify(resp or {"state": True})
+
+
+@app.route("/api/sensim/<int:sid>/values", methods=["GET"])
+def sensim_get_values(sid: int):
+    resp = ha_call(HA_DOMAIN, "sensim_get_values", {"id": sid}) or {}
+    return jsonify(resp)
+
+
+@app.route("/api/sensim/<int:sid>/setValues", methods=["POST"])
+def sensim_set_values(sid: int):
+    body = request.get_json(force=True) or {}
+    payload = {
+        "id": sid,
+        "wind_digital": int(body.get("wind_digital", 0)),
+        "rain_digital": int(body.get("rain_digital", 0)),
+        "temp_digital": int(body.get("temp_digital", 0)),
+        "light_digital": int(body.get("light_digital", 0)),
+        "temp_analog": int(body.get("temp_analog", 0)),
+        "wind_analog": int(body.get("wind_analog", 0)),
+        "sun_1_analog": int(body.get("sun_1_analog", 0)),
+        "day_light_analog": int(body.get("day_light_analog", 0)),
+        "sun_2_analog": int(body.get("sun_2_analog", 0)),
+        "sun_3_analog": int(body.get("sun_3_analog", 0)),
+    }
+    resp = ha_call(HA_DOMAIN, "sensim_set_values", payload)
+    return jsonify(resp or {"state": True})
+
+
+@app.route("/api/sensim/<int:sid>/test", methods=["GET"])
+def sensim_get_test(sid: int):
+    resp = ha_call(HA_DOMAIN, "sensim_get_test", {"id": sid}) or {}
+    return jsonify(resp)
+
+
+@app.route("/api/sensim/<int:sid>/setTest", methods=["POST"])
+def sensim_set_test(sid: int):
+    body = request.get_json(force=True) or {}
+    test_mode = int(body.get("test_mode", body.get("testMode", 0)))
+    resp = ha_call(HA_DOMAIN, "sensim_set_test", {"id": sid, "test_mode": test_mode})
+    return jsonify(resp or {"state": True})
+
+
+@app.route("/api/sensim/<int:sid>/drive", methods=["POST"])
+def sensim_drive(sid: int):
+    body = request.get_json(force=True) or {}
+    command = body.get("command", "AUTOMATIC")
+    resp = ha_call(HA_DOMAIN, "sensim_drive", {"id": sid, "command": command})
+    return jsonify(resp or {"state": True})
+
+
+@app.route("/api/sensim/<int:sid>/store", methods=["POST"])
+def sensim_store(sid: int):
+    body = request.get_json(force=True) or {}
+    actor_id = int(body.get("actor_id", 0))
+    resp = ha_call(HA_DOMAIN, "sensim_store", {"id": sid, "actor_id": actor_id})
+    return jsonify(resp or {"state": True})
+
+
+@app.route("/api/sensim/<int:sid>", methods=["DELETE"])
+def sensim_delete(sid: int):
+    body = request.get_json(force=True) or {}
+    actor_id = int(body.get("actor_id", 0))
+    resp = ha_call(HA_DOMAIN, "sensim_delete", {"id": sid, "actor_id": actor_id})
+    return jsonify(resp or {"state": True})
+
+
+@app.route("/api/sensim/<int:sid>/factoryReset", methods=["POST"])
+def sensim_factory_reset(sid: int):
+    resp = ha_call(HA_DOMAIN, "sensim_factory", {"id": sid})
+    return jsonify(resp or {"state": True})
+
+
+@app.route("/api/sensim/factoryReset", methods=["POST"])
+def sensim_factory_reset_all():
+    """Reset ALL sensim devices."""
+    ids = ha_call(HA_DOMAIN, "sensim_get_ids") or {}
+    id_list = ids.get("ids", []) if isinstance(ids, dict) else []
+    for sid in id_list:
+        ha_call(HA_DOMAIN, "sensim_factory", {"id": int(sid)})
+    return jsonify({"state": True})
+
+
+# -------------------- Firmware endpoints --------------------
+@app.route("/api/firmware/version", methods=["GET"])
+def firmware_version():
+    resp = ha_call(HA_DOMAIN, "get_gateway_firmware_version") or {}
+    return jsonify(resp)
+
+
+@app.route("/api/firmware/upload", methods=["POST"])
+def firmware_upload():
+    """Trigger firmware update on the gateway.
+    The actual firmware transfer happens at the serial protocol level.
+    This endpoint triggers the gateway's firmware update procedure."""
+    resp = ha_call(HA_DOMAIN, "firmware_update")
+    return jsonify(resp or {"state": True})
+
+
+# -------------------- Additional Parameter endpoints --------------------
+@app.route("/api/gateway/temperature", methods=["GET"])
+def gateway_temperature():
+    resp = ha_call(HA_DOMAIN, "get_temperature") or {}
+    return jsonify(resp)
+
+
+@app.route("/api/gateway/forward", methods=["GET", "POST"])
+def gateway_forward():
+    if request.method == "GET":
+        resp = ha_call(HA_DOMAIN, "get_forward") or {}
+        return jsonify(resp)
+    body = request.get_json(force=True) or {}
+    state = bool(body.get("state", False))
+    resp = ha_call(HA_DOMAIN, "set_forward", {"state": state})
+    return jsonify(resp or {"state": True})
+
+
+@app.route("/api/gateway/setDuty", methods=["POST"])
+def gateway_set_duty():
+    body = request.get_json(force=True) or {}
+    mode = int(body.get("mode", 0))
+    resp = ha_call(HA_DOMAIN, "set_duty", {"mode": mode})
+    return jsonify(resp or {"state": True})
+
+
+@app.route("/api/gateway/setRF", methods=["POST"])
+def gateway_set_rf():
+    body = request.get_json(force=True) or {}
+    address = int(body.get("address", 0))
+    reset_count = int(body.get("resetCount", 0))
+    resp = ha_call(HA_DOMAIN, "set_rf", {"net_address": address, "reset_count": reset_count})
+    return jsonify(resp or {"state": True})
+
+
+@app.route("/api/gateway/ping", methods=["GET"])
+def gateway_ping():
+    resp = ha_call(HA_DOMAIN, "ping_gateway") or {}
+    return jsonify(resp)
+
+
+@app.route("/api/gateway/state", methods=["GET"])
+def gateway_state():
+    resp = ha_call(HA_DOMAIN, "gateway_state") or {}
+    return jsonify(resp)
+
+
+# -------------------- Enhanced Device Movement endpoints --------------------
+@app.route("/api/devices/<int:did>/movePos", methods=["POST"])
+def device_move_pos(did: int):
+    body = request.get_json(force=True) or {}
+    position = int(body.get("position", 0))
+    command = body.get("command", "MANUAL")
+    resp = ha_call(HA_DOMAIN, "device_move_pos", {"id": did, "position": position, "command": command, "type": "DEVICE"})
+    return jsonify(resp or {"state": True})
+
+
+@app.route("/api/devices/<int:did>/savePos1", methods=["POST"])
+def device_save_pos1(did: int):
+    resp = ha_call(HA_DOMAIN, "device_save_pos1", {"id": did, "type": "DEVICE"})
+    return jsonify(resp or {"state": True})
+
+
+@app.route("/api/devices/<int:did>/savePos2", methods=["POST"])
+def device_save_pos2(did: int):
+    resp = ha_call(HA_DOMAIN, "device_save_pos2", {"id": did, "type": "DEVICE"})
+    return jsonify(resp or {"state": True})
+
+
+@app.route("/api/devices/commandResult", methods=["GET"])
+def device_command_result():
+    resp = ha_call(HA_DOMAIN, "command_result") or {}
+    return jsonify(resp)
+
+
+# -------------------- Iveo enhanced endpoints --------------------
+@app.route("/api/iveo/commandResult", methods=["GET"])
+def iveo_command_result():
+    resp = ha_call(HA_DOMAIN, "iveo_command_result") or {}
+    return jsonify(resp)
+
+
+@app.route("/api/iveo/<int:iid>/setConfig", methods=["POST"])
+def iveo_set_config(iid: int):
+    body = request.get_json(force=True) or {}
+    activity = int(body.get("activity", 0))
+    resp = ha_call(HA_DOMAIN, "iveo_set_type", {"id": iid, "activity": activity})
+    return jsonify(resp or {"state": True})
+
+
+@app.route("/api/iveo/<int:iid>/config", methods=["GET"])
+def iveo_get_config(iid: int):
+    resp = ha_call(HA_DOMAIN, "iveo_get_type", {"id": iid}) or {}
+    return jsonify(resp)
+
+
+# -------------------- XML Log endpoint (view captured logs) --------------------
+@app.route("/api/xmllog", methods=["GET"])
+def xml_log():
+    return jsonify(_xml_log)
+
+
+@app.route("/api/xmllog/clear", methods=["POST"])
+def xml_log_clear():
+    _xml_log.clear()
+    return jsonify({"state": True})
 
 
 # -------------------- App entry --------------------

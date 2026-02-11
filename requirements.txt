@@ -1,4 +1,4 @@
-python-selve-new
+python-selve-new>=2.5.0
 flask
 flask_cors
 requests

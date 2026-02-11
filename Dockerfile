@@ -6,7 +6,7 @@ WORKDIR /app
 
 # Install and cache deps first
 COPY frontend-src/package*.json ./
-COPY frontend-src/yarn.lock ./
+COPY frontend-src/yarn.lock* ./
 RUN npm ci
 
 # Build Quasar SPA
@@ -24,13 +24,11 @@ WORKDIR /app
 
 # Backend dependencies
 COPY requirements.txt ./
-RUN pip3 install --no-cache-dir -r requirements.txt
+RUN pip3 install --no-cache-dir --break-system-packages -r requirements.txt
 
 # Application sources
 COPY run.py ./
 COPY run.sh ./
-COPY backend ./backend
-COPY webapp ./webapp
 COPY config.yaml ./
 COPY index.html ./
 

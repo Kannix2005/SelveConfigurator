@@ -198,7 +198,8 @@ async function teachIveo() {
     persistent: true,
   }).onOk(async () => {
     try {
-      await axios.post('/api/iveo/teach')
+      const id = iveoDevices.value[0]?.id ?? 0
+      await axios.post(`/api/iveo/${id}/teach`)
       $q.notify({ color: 'positive', message: 'Teach telegram sent', icon: 'check' })
     } catch (e) {
       $q.notify({ color: 'negative', message: 'Teach failed', icon: 'error' })
@@ -243,7 +244,8 @@ function confirmFactoryReset() {
     ok: { label: 'Reset', color: 'negative' },
   }).onOk(async () => {
     try {
-      await axios.post('/api/iveo/factoryReset')
+      const id = iveoDevices.value[0]?.id ?? 0
+      await axios.post(`/api/iveo/${id}/factoryReset`)
       $q.notify({ color: 'positive', message: 'Iveo factory reset complete', icon: 'check' })
       await loadIveoDevices()
     } catch (e) {

@@ -88,10 +88,10 @@
             </span>
           </q-td>
           <q-td key="channel" :props="props">
-            {{ props.row.info?.channel ?? '-' }}
+            {{ props.row.info?.rf_channel ?? '-' }}
           </q-td>
           <q-td key="address" :props="props">
-            {{ props.row.info?.address ?? '-' }}
+            {{ props.row.info?.rf_address ?? '-' }}
           </q-td>
           <q-td key="actions" :props="props">
             <div class="q-gutter-xs">
