@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.2.0] - 2026-05-13
+
+### Fixed
+- `DEV_TYPE_MAP` in backend: was mapping 7→HEATING/8→COOLING/9→SWITCHING; corrected to 7→DRAWN_LIGHT/8→HEATING/9→COOLING/10→SWITCHDAY/11→GATEWAY
+- `deviceFunctions` list in Devices UI: was using invented names; now matches the spec (`SELECT`, `INSTALL`, `SENSOR`, `MANPROG`, `AUTOPROG`, `STOREPOSITION`, `DRIVEUP`, `DRIVEDOWN`, `KEYRELEASE`, `DRIVESTOP`)
+- Scan save: `saveScannedDevice` now correctly passes `foundId` from scan result (was always sending ID 0)
+- Scan polling: end-of-scan detection now uses `scanState` (3=success, 4=failed) instead of ad-hoc flags
+- Reset/FactoryReset routes changed from GET to POST (correct REST semantics)
+- XML log entries now display `domain.service` instead of misleading `selve.GW.service`
+
+### Improved
+- Device list loading parallelized via `asyncio.gather` — all `device_get_info` + `device_get_values` calls now run in one batch instead of sequentially (major speedup for gateways with many devices)
+- Devices page: added **Auto-refresh** toggle (5 s interval)
+- Devices page: **Step Up / Step Down** buttons now available directly in the table row (Commeo devices only)
+
 ## [2.1.0] - 2026-05-13
 
 ### Added
