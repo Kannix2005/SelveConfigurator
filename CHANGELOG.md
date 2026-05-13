@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.1.0] - 2026-05-13
+
+### Added
+- GitHub Actions CI/CD workflow: multi-arch Docker build (aarch64, amd64, armhf, armv7, i386) pushed to GitHub Container Registry on every release
+- Pre-built images via `ghcr.io/kannix2005/selve-configurator-{arch}` — users no longer need a local Docker build on the HA device
+
+### Changed
+- `config.yaml`: added `image` field pointing to pre-built GHCR images
+- `Dockerfile`: added required HA add-on labels (`io.hass.version`, `io.hass.type`, `io.hass.arch`)
+
 ## [2.0.0] - 2026-02-11
 
 Complete rewrite with modern frontend and full feature parity with the Windows *CommeoUSBGatewayV2* desktop application.
