@@ -606,9 +606,14 @@ def iveo_list():
     rows = []
     for iid in id_list:
         info = ha_call(HA_DOMAIN, "iveo_get_type", {"id": int(iid)}) or {}
+        type_raw = info.get("device_type", 0)
+        try:
+            type_str = DEV_TYPE_MAP.get(int(type_raw), f"TYPE_{type_raw}")
+        except (TypeError, ValueError):
+            type_str = str(type_raw) if type_raw else "UNKNOWN"
         rows.append({
             "id": int(iid),
-            "type": info.get("device_type", "UNKNOWN"),
+            "type": type_str,
             "name": info.get("name", f"Iveo-{iid}"),
         })
     return jsonify(rows)
@@ -1081,7 +1086,9 @@ def gateway_state():
 @app.route("/api/devices/<int:did>/movePos", methods=["POST"])
 def device_move_pos(did: int):
     body = request.get_json(force=True) or {}
-    position = int(body.get("position", 0))
+    position_pct = int(body.get("position", 0))
+    # HA service expects 0-65535 range; frontend sends 0-100 percent
+    position = int((position_pct / 100.0) * 65535)
     command = body.get("command", "MANUAL")
     resp = ha_call(HA_DOMAIN, "device_move_pos", {"id": did, "position": position, "command": command, "type": "DEVICE"})
     return jsonify(resp or {"state": True})

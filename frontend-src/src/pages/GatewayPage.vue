@@ -38,7 +38,7 @@
                 <q-item-section avatar><q-icon name="thermostat" color="orange" /></q-item-section>
                 <q-item-section>
                   <q-item-label caption>Module Temperature</q-item-label>
-                  <q-item-label>{{ gw.temperature !== null ? gw.temperature + '°C' : 'N/A' }}</q-item-label>
+                  <q-item-label>{{ (gw.temperature !== null && gw.temperature >= 0) ? gw.temperature + '°C' : 'N/A' }}</q-item-label>
                 </q-item-section>
               </q-item>
             </q-list>

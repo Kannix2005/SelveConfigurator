@@ -2,6 +2,23 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.4.0] - 2026-05-13
+
+### Fixed
+- Iveo Type column: backend now translates numeric `device_type` through DEV_TYPE_MAP so the UI shows names (SHUTTER, BLIND, …) instead of raw integers
+- Groups page: Device IDs column was not rendering — fixed by adding explicit `actions` column definition and switching body template from generic `v-for` to explicit named `<q-td>` cells (actions were overlapping Device IDs)
+- Devices detail dialog: changed from full-screen `maximized` to a sized popover (900 px, 90 vh, scrollable)
+- Devices detail dialog: clicking the Type dropdown in the table row no longer opens the detail view (wrapped q-select in `<div @click.stop>`)
+- Iveo devices in Devices table: position now shows "N/A" instead of `-%` (Iveo is unidirectional and has no position feedback)
+- Gateway Module Temperature: values < 0 (hardware sentinel "not available") now display as "N/A" instead of e.g. `−1°C`
+- Target Position "Go": frontend was sending 0–100 %; backend now converts to the 0–65535 range expected by `device_move_pos`
+
+### Added
+- SenSim page: **Add SenSim** button opens a dialog to initialize a sensor-simulation slot (slot ID 0–4) and link it to a device actor ID
+
+### Improved
+- Devices detail — Configuration section: added description text explaining Device Type and Function fields
+
 ## [2.3.0] - 2026-05-13
 
 ### Fixed

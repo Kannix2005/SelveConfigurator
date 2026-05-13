@@ -60,14 +60,14 @@
     </q-dialog>
 
     <!-- Device Detail Dialog -->
-    <q-dialog v-model="detailDialogOpen" maximized transition-show="slide-up" transition-hide="slide-down">
-      <q-card v-if="selectedDevice">
-        <q-bar class="bg-primary text-white">
-          <span>Device {{ selectedDevice.id }}: {{ selectedDevice.name || 'Unnamed' }}</span>
+    <q-dialog v-model="detailDialogOpen" transition-show="fade" transition-hide="fade">
+      <q-card v-if="selectedDevice" style="width: 900px; max-width: 95vw; max-height: 90vh; display: flex; flex-direction: column;">
+        <q-card-section class="row items-center q-pb-none bg-primary text-white" style="flex-shrink: 0">
+          <span class="text-h6">Device {{ selectedDevice.id }}: {{ selectedDevice.name || 'Unnamed' }}</span>
           <q-space />
-          <q-btn dense flat icon="close" v-close-popup />
-        </q-bar>
-        <q-card-section class="q-pa-md">
+          <q-btn dense flat icon="close" color="white" v-close-popup />
+        </q-card-section>
+        <q-card-section class="q-pa-md" style="overflow-y: auto; flex: 1">
           <div class="row q-gutter-lg">
             <!-- Left: Info -->
             <div class="col-12 col-md-5">
@@ -138,6 +138,7 @@
               <q-card flat bordered>
                 <q-card-section>
                   <div class="text-subtitle1 q-mb-sm">Configuration</div>
+                  <div class="text-caption text-grey q-mb-md">Set the device type (shutter, blind, awning, etc.) and movement function. Type defines how the gateway interprets the device; Function controls which movement commands are active. Changes are applied immediately to the gateway.</div>
                   <div class="row q-gutter-md">
                     <q-select v-model="selectedDeviceType" :options="deviceTypes" label="Device Type" outlined dense style="min-width: 160px"
                       @update:model-value="setDeviceType(selectedDevice.id, selectedDevice.communicationType, $event)" />
@@ -175,12 +176,15 @@
             </q-chip>
           </q-td>
           <q-td key="type" :props="props">
-            <q-select dense outlined v-model="props.row.deviceType" :options="deviceTypes"
-              @update:model-value="setDeviceType(props.row.id, props.row.communicationType, $event)"
-              @click.stop style="min-width: 120px" />
+            <div @click.stop>
+              <q-select dense outlined v-model="props.row.deviceType" :options="deviceTypes"
+                @update:model-value="setDeviceType(props.row.id, props.row.communicationType, $event)"
+                style="min-width: 120px" />
+            </div>
           </q-td>
           <q-td key="value" :props="props">
-            <q-badge :color="(props.row.info?.value ?? 0) > 50 ? 'positive' : 'warning'">
+            <span v-if="props.row.communicationType === 'IVEO'" class="text-grey text-caption">N/A</span>
+            <q-badge v-else :color="(props.row.info?.value ?? 0) > 50 ? 'positive' : 'warning'">
               {{ props.row.info?.value ?? '-' }}%
             </q-badge>
           </q-td>

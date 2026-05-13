@@ -4,7 +4,29 @@
       <div class="text-h5">Sensor Simulation</div>
       <q-space />
       <q-btn color="primary" label="Refresh" icon="refresh" @click="loadSenSims" :loading="loading" class="q-mr-sm" />
+      <q-btn color="secondary" label="Add SenSim" icon="add" @click="openAddDialog" />
     </div>
+
+    <!-- Add SenSim Dialog -->
+    <q-dialog v-model="addDialogOpen" persistent>
+      <q-card style="min-width: 380px">
+        <q-card-section class="row items-center q-pb-none">
+          <span class="text-h6">Add Sensor Simulation</span>
+          <q-space />
+          <q-btn icon="close" flat round dense v-close-popup />
+        </q-card-section>
+        <q-card-section class="q-gutter-md">
+          <q-input v-model.number="addForm.id" label="SenSim Slot ID (0–4)" type="number" :min="0" :max="4" outlined
+            hint="Gateway supports up to 5 sensor simulation slots (0–4)" />
+          <q-input v-model.number="addForm.actor_id" label="Actor Device ID" type="number" :min="0" outlined
+            hint="ID of the Commeo device this SenSim will be linked to" />
+        </q-card-section>
+        <q-card-actions align="right">
+          <q-btn flat label="Cancel" color="grey" v-close-popup />
+          <q-btn flat label="Add" color="positive" @click="addSenSim" />
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
 
     <!-- Info Banner -->
     <q-banner class="bg-blue-1 q-mb-md" rounded>
@@ -162,6 +184,8 @@ const $q = useQuasar()
 const senSims = ref([])
 const loading = ref(false)
 const editDialogOpen = ref(false)
+const addDialogOpen = ref(false)
+const addForm = ref({ id: 0, actor_id: 0 })
 const editingSenSim = ref(null)
 const editValues = ref({
   wind_digital: false,
@@ -315,6 +339,22 @@ function confirmFactoryReset() {
       $q.notify({ color: 'negative', message: 'Factory reset failed', icon: 'error' })
     }
   })
+}
+
+function openAddDialog() {
+  addForm.value = { id: 0, actor_id: 0 }
+  addDialogOpen.value = true
+}
+
+async function addSenSim() {
+  try {
+    await axios.post(`/api/sensim/${addForm.value.id}/store`, { actor_id: addForm.value.actor_id })
+    $q.notify({ color: 'positive', message: `SenSim slot ${addForm.value.id} added`, icon: 'check' })
+    addDialogOpen.value = false
+    await loadSenSims()
+  } catch (e) {
+    $q.notify({ color: 'negative', message: 'Failed to add SenSim', icon: 'error' })
+  }
 }
 
 onMounted(loadSenSims)

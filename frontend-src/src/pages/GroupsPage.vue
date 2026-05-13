@@ -37,54 +37,16 @@
 
         <template v-slot:body="props">
           <q-tr :props="props">
-            <q-td v-for="col in props.cols" :key="col.name" :props="props">
-              {{ col.value }}
-            </q-td>
-            <q-td auto-width>
-              <div class="q-gutter-sm">
-                <!-- Movement Controls -->
-                <q-btn
-                  size="sm"
-                  color="positive"
-                  icon="arrow_upward"
-                  @click="moveGroup(props.row.id, 'up')"
-                >
-                  <q-tooltip>Move Up</q-tooltip>
-                </q-btn>
-                <q-btn
-                  size="sm"
-                  color="warning"
-                  icon="stop"
-                  @click="moveGroup(props.row.id, 'stop')"
-                >
-                  <q-tooltip>Stop</q-tooltip>
-                </q-btn>
-                <q-btn
-                  size="sm"
-                  color="negative"
-                  icon="arrow_downward"
-                  @click="moveGroup(props.row.id, 'down')"
-                >
-                  <q-tooltip>Move Down</q-tooltip>
-                </q-btn>
-                
-                <!-- Edit/Delete -->
-                <q-btn
-                  size="sm"
-                  color="primary"
-                  icon="edit"
-                  @click="editGroupDialog(props.row)"
-                >
-                  <q-tooltip>Edit Group</q-tooltip>
-                </q-btn>
-                <q-btn
-                  size="sm"
-                  color="red"
-                  icon="delete"
-                  @click="deleteGroupDialog(props.row.id, props.row.name)"
-                >
-                  <q-tooltip>Delete Group</q-tooltip>
-                </q-btn>
+            <q-td key="id" :props="props">{{ props.row.id }}</q-td>
+            <q-td key="name" :props="props">{{ props.row.name }}</q-td>
+            <q-td key="device_ids" :props="props">{{ props.row.device_ids && props.row.device_ids.length ? props.row.device_ids.join(', ') : '-' }}</q-td>
+            <q-td key="actions" :props="props">
+              <div class="q-gutter-xs">
+                <q-btn size="sm" color="positive" icon="arrow_upward" @click="moveGroup(props.row.id, 'up')"><q-tooltip>Move Up</q-tooltip></q-btn>
+                <q-btn size="sm" color="warning" icon="stop" @click="moveGroup(props.row.id, 'stop')"><q-tooltip>Stop</q-tooltip></q-btn>
+                <q-btn size="sm" color="negative" icon="arrow_downward" @click="moveGroup(props.row.id, 'down')"><q-tooltip>Move Down</q-tooltip></q-btn>
+                <q-btn size="sm" color="primary" icon="edit" @click="editGroupDialog(props.row)"><q-tooltip>Edit Group</q-tooltip></q-btn>
+                <q-btn size="sm" color="red" icon="delete" @click="deleteGroupDialog(props.row.id, props.row.name)"><q-tooltip>Delete Group</q-tooltip></q-btn>
               </div>
             </q-td>
           </q-tr>
@@ -124,6 +86,12 @@ const columns = [
     label: "Device IDs",
     align: "left",
     field: (row) => row.device_ids ? row.device_ids.join(', ') : '',
+    sortable: false,
+  },
+  {
+    name: "actions",
+    label: "Actions",
+    align: "center",
     sortable: false,
   },
 ];
