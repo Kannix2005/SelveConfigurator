@@ -1,4 +1,6 @@
 ARG BUILD_FROM
+ARG BUILD_ARCH
+ARG BUILD_VERSION
 
 # ---------- Frontend build stage ----------
 FROM node:18-alpine AS frontend-builder
@@ -16,6 +18,14 @@ RUN npm run build
 
 # ---------- Final runtime image ----------
 FROM $BUILD_FROM
+
+ARG BUILD_ARCH
+ARG BUILD_VERSION
+
+LABEL \
+    io.hass.version="${BUILD_VERSION}" \
+    io.hass.type="addon" \
+    io.hass.arch="${BUILD_ARCH}"
 
 # Install Python runtime
 RUN apk add --no-cache python3 py3-pip

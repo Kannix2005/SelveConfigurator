@@ -1,3 +1,4 @@
+image: "ghcr.io/kannix2005/selve-configurator-{arch}"
 name: "Selve Configurator"
 description: "Web-based configurator for the Selve USB-RF Gateway – manage devices, groups, sensors, senders, IVEO controllers, senSim, firmware, and gateway settings."
 version: "2.1.0"

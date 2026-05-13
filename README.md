@@ -1,6 +1,6 @@
 # Selve Configurator
 
-[![Version](https://img.shields.io/badge/version-2.0.0-blue.svg)](https://github.com/Kannix2005/SelveConfigurator/releases)
+[![Version](https://img.shields.io/badge/version-2.1.0-blue.svg)](https://github.com/Kannix2005/SelveConfigurator/releases)
 
 A Home Assistant add-on that provides a full-featured web interface for configuring and managing Selve USB-RF Gateway devices — equivalent to the Windows *CommeoUSBGatewayV2* desktop application.
 
@@ -49,12 +49,6 @@ The add-on runs a Flask backend (`run.py`) that proxies requests to the Selve NG
 │  (Quasar)    │◀────│  (run.py)    │◀────│  API Proxy     │◀────│ Services │
 └──────────────┘     └──────────────┘     └────────────────┘     └──────────┘
 ```
-
-## Configuration
-
-| Option | Default | Description |
-|--------|---------|-------------|
-| `device_port` | `/dev/ttyUSB0` | USB port of the Selve RF gateway |
 
 ## Development
 
