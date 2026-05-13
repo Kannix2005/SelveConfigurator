@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.4.2] - 2026-05-13
+
+### Fixed
+- Groups page: "Create Group" was always overwriting slot 0 — backend now finds the next free group slot (IDs 0–15) via `group_get_ids` before writing, so each new group gets a unique slot
+- Groups page: Edit dialog pre-populates existing device members as checked checkboxes — previously the checkbox list was empty when opening an existing group for editing
+
 ## [2.4.1] - 2026-05-13
 
 ### Fixed

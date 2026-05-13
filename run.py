@@ -500,7 +500,26 @@ def groups_list():
     return jsonify(rows)
 
 
-@app.route("/api/groups/<int:gid>", methods=["GET"]) 
+@app.route("/api/groups", methods=["POST"])
+def group_create():
+    body = request.get_json(force=True) or {}
+    name = body.get("name", "Group")
+    device_ids = body.get("device_ids", [])
+    existing_resp = ha_call(HA_DOMAIN, "group_get_ids") or {}
+    existing_ids = set(int(x) for x in (existing_resp.get("ids", []) or []))
+    new_id = None
+    for slot in range(16):
+        if slot not in existing_ids:
+            new_id = slot
+            break
+    if new_id is None:
+        return jsonify({"error": "No free group slots (max 16)"}), 400
+    ids_text = ",".join(str(x) for x in device_ids)
+    resp = ha_call(HA_DOMAIN, "group_write", {"id": new_id, "ids": ids_text, "name": name})
+    return jsonify(resp or {"state": True, "id": new_id})
+
+
+@app.route("/api/groups/<int:gid>", methods=["GET"])
 def group_get(gid: int):
     info = ha_call(HA_DOMAIN, "group_read", {"id": gid}) or {}
     return jsonify(info)
