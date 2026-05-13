@@ -31,10 +31,12 @@ jobs:
         id: version
         run: |
           if [ "${{ github.event_name }}" = "release" ]; then
-            echo "version=${{ github.event.release.tag_name }}" >> $GITHUB_OUTPUT
+            TAG="${{ github.event.release.tag_name }}"
           else
-            echo "version=${{ inputs.version }}" >> $GITHUB_OUTPUT
+            TAG="${{ inputs.version }}"
           fi
+          # Strip leading 'v' so Docker tag matches config.yaml version (e.g. v2.3.0 -> 2.3.0)
+          echo "version=${TAG#v}" >> $GITHUB_OUTPUT
 
       - name: Login to GitHub Container Registry
         uses: docker/login-action@v3
