@@ -3,6 +3,7 @@
     <div class="row items-center q-mb-md">
       <div class="text-h5">Devices (Actors)</div>
       <q-space />
+      <q-toggle v-model="autoRefresh" label="Auto" color="primary" class="q-mr-sm" />
       <q-btn color="primary" label="Refresh" icon="refresh" @click="loadDevices" :loading="loading" class="q-mr-sm" />
       <q-btn color="positive" label="Update All" icon="sync" @click="updateAllDevices" :loading="loading" class="q-mr-sm" />
       <q-btn color="secondary" label="Scan for Devices" icon="search" @click="startScan" :loading="scanning" class="q-mr-sm" />
@@ -195,6 +196,8 @@
               <q-btn dense flat icon="arrow_downward" color="negative" @click="moveDevice(props.row.id, 'down')"><q-tooltip>Down</q-tooltip></q-btn>
               <q-btn dense flat icon="looks_one" color="info" @click="moveDevice(props.row.id, 'pos1')"><q-tooltip>Pos 1</q-tooltip></q-btn>
               <q-btn dense flat icon="looks_two" color="info" @click="moveDevice(props.row.id, 'pos2')"><q-tooltip>Pos 2</q-tooltip></q-btn>
+              <q-btn dense flat icon="expand_less" color="teal" @click="stepDevice(props.row.id, 'stepUp')" v-if="props.row.communicationType !== 'IVEO'"><q-tooltip>Step Up</q-tooltip></q-btn>
+              <q-btn dense flat icon="expand_more" color="teal" @click="stepDevice(props.row.id, 'stepDown')" v-if="props.row.communicationType !== 'IVEO'"><q-tooltip>Step Down</q-tooltip></q-btn>
               <q-btn dense flat icon="open_in_full" color="primary" @click="showDetail(props.row)"><q-tooltip>Details</q-tooltip></q-btn>
               <q-btn dense flat icon="delete" color="negative" @click="confirmDelete(props.row)"><q-tooltip>Delete</q-tooltip></q-btn>
             </div>
@@ -206,7 +209,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onUnmounted, watch } from 'vue'
 import { useQuasar } from 'quasar'
 import axios from 'axios'
 
@@ -226,9 +229,11 @@ const selectedDeviceFunction = ref('SELECT')
 const positionSlider = ref(50)
 const manualWriteDialogOpen = ref(false)
 const manualDevice = ref({ id: 0, address: '', name: '', type: 'UNKNOWN' })
+const autoRefresh = ref(false)
+let autoRefreshInterval = null
 
 const deviceTypes = ['UNKNOWN', 'SHUTTER', 'BLIND', 'AWNING', 'SWITCH', 'DIMMER', 'NIGHT_LIGHT', 'DRAWN_LIGHT', 'HEATING', 'COOLING', 'SWITCHDAY', 'GATEWAY']
-const deviceFunctions = ['SELECT', 'DRIVE', 'VENTILATION', 'SUN', 'NIGHTCLOSE', 'SAVE1', 'SAVE2']
+const deviceFunctions = ['SELECT', 'INSTALL', 'SENSOR', 'MANPROG', 'AUTOPROG', 'STOREPOSITION', 'DRIVEUP', 'DRIVEDOWN', 'KEYRELEASE', 'DRIVESTOP']
 
 const columns = [
   { name: 'id', label: 'ID', field: 'id', sortable: true, align: 'left' },
@@ -282,6 +287,11 @@ async function forcedMove(id, action) {
   const ep = { up: 'moveUpForced', down: 'moveDownForced', stop: 'stopForced' }[action]
   try { await axios.post(`/api/devices/${id}/${ep}`); $q.notify({ color: 'positive', message: `Forced ${action}`, icon: 'check' }) }
   catch (e) { $q.notify({ color: 'negative', message: 'Forced command failed', icon: 'error' }) }
+}
+
+async function stepDevice(id, action) {
+  try { await axios.post(`/api/devices/${id}/${action}`); $q.notify({ color: 'positive', message: action, icon: 'check' }) }
+  catch (e) { $q.notify({ color: 'negative', message: 'Step failed', icon: 'error' }) }
 }
 
 async function setDeviceType(id, comm, type) {
@@ -338,18 +348,32 @@ async function startScan() {
 }
 
 async function pollScanResult() {
-  try { const { data } = await axios.get('/api/devices/scan/result'); if (data && (data.found || data.finished)) { clearInterval(scanPollInterval); scanning.value = false; scanResult.value = data } }
-  catch (e) { /* poll */ }
+  try {
+    const { data } = await axios.get('/api/devices/scan/result')
+    if (data && data.finished) {
+      clearInterval(scanPollInterval)
+      scanning.value = false
+      scanResult.value = data
+    }
+  } catch (e) { /* poll silently */ }
 }
 
 async function stopScan() { clearInterval(scanPollInterval); try { await axios.post('/api/devices/scan/stop') } catch(e) {} scanning.value = false }
 
 async function saveScannedDevice() {
-  try { await axios.post('/api/devices/save'); $q.notify({ color: 'positive', message: 'Saved', icon: 'check' }); scanDialogOpen.value = false; await loadDevices() }
+  const id = scanResult.value?.foundId ?? scanResult.value?.foundIds?.[0]
+  if (id == null) { $q.notify({ color: 'negative', message: 'No device ID to save', icon: 'error' }); return }
+  try { await axios.post('/api/devices/save', { id }); $q.notify({ color: 'positive', message: 'Saved', icon: 'check' }); scanDialogOpen.value = false; await loadDevices() }
   catch (e) { $q.notify({ color: 'negative', message: 'Save failed', icon: 'error' }) }
 }
 
 function closeScanDialog() { if (scanning.value) stopScan(); scanResult.value = null }
 
+watch(autoRefresh, (val) => {
+  if (val) { autoRefreshInterval = setInterval(loadDevices, 5000) }
+  else { clearInterval(autoRefreshInterval); autoRefreshInterval = null }
+})
+
 onMounted(loadDevices)
+onUnmounted(() => { if (autoRefreshInterval) clearInterval(autoRefreshInterval) })
 </script>

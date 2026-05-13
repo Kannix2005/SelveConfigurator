@@ -115,13 +115,18 @@ _ha_client = None
 _xml_log = []
 _xml_log_max = 200
 
+DEV_TYPE_MAP = {
+    0: "UNKNOWN", 1: "SHUTTER", 2: "BLIND", 3: "AWNING",
+    4: "SWITCH", 5: "DIMMER", 6: "NIGHT_LIGHT", 7: "DRAWN_LIGHT",
+    8: "HEATING", 9: "COOLING", 10: "SWITCHDAY", 11: "GATEWAY",
+}
+
 def _log_xml_call(domain, service, data, response):
-    """Log XML-RPC style calls for the XML log viewer."""
     import datetime
     entry = {
         "timestamp": datetime.datetime.now().isoformat(),
         "direction": "REQUEST",
-        "method": f"selve.GW.{service}",
+        "method": f"{domain}.{service}",
         "data": data,
         "response": response,
     }
@@ -170,6 +175,29 @@ def ha_call(domain: str, service: str, data: dict | None = None):
         except Exception:
             pass
         return {"error": str(ex)}
+
+
+def ha_call_many(calls):
+    """Run multiple (domain, service, data) calls in parallel via asyncio.gather."""
+    async def _run_all():
+        client = _get_client_for_request()
+        coros = [client.call_service(d, s, p, return_response=True) for d, s, p in calls]
+        return await asyncio.gather(*coros, return_exceptions=True)
+
+    def _run():
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            return loop.run_until_complete(_run_all())
+        finally:
+            loop.close()
+
+    try:
+        results = _executor.submit(_run).result(timeout=60)
+    except Exception as ex:
+        _LOGGER.exception("ha_call_many failed: %s", ex)
+        return [{} for _ in calls]
+    return [r if not isinstance(r, Exception) else {} for r in results]
 
 
 # -------------------- Debug endpoint --------------------
@@ -248,13 +276,13 @@ def gateway_events():
     return jsonify(resp or {"state": True})
 
 
-@app.route("/api/gateway/reset", methods=["GET"])  
+@app.route("/api/gateway/reset", methods=["POST"])
 def gateway_reset():
     resp = ha_call(HA_DOMAIN, "reset")
     return jsonify(resp or {"state": True})
 
 
-@app.route("/api/gateway/factoryReset", methods=["GET"])  
+@app.route("/api/gateway/factoryReset", methods=["POST"])
 def gateway_factory_reset():
     resp = ha_call(HA_DOMAIN, "factory_reset_gateway")
     return jsonify(resp or {"state": True})
@@ -281,55 +309,54 @@ def _device_ids():
     return []
 
 
-@app.route("/api/devices", methods=["GET"]) 
+@app.route("/api/devices", methods=["GET"])
 def devices_list():
-    # Get Commeo devices
     commeo_ids = _device_ids()
-    rows = []
-    
-    # Device type mapping
-    dev_type_map = {0: "UNKNOWN", 1: "SHUTTER", 2: "BLIND", 3: "AWNING", 4: "SWITCH", 5: "DIMMER", 6: "NIGHT_LIGHT", 7: "HEATING", 8: "COOLING", 9: "SWITCHING"}
-    
-    # Add Commeo devices
+    iveo_ids_resp = ha_call(HA_DOMAIN, "iveo_get_ids") or {}
+    iveo_ids = iveo_ids_resp.get("ids", []) if isinstance(iveo_ids_resp, dict) else []
+
+    # Build all info/values calls in one parallel batch
+    calls = []
     for did in commeo_ids:
-        info_resp = ha_call(HA_DOMAIN, "device_get_info", {"id": int(did)}) or {}
-        vals = ha_call(HA_DOMAIN, "device_get_values", {"id": int(did)}) or {}
-        info = vals if isinstance(vals, dict) else {}
-        name = info_resp.get("name") or info_resp.get("label") or f"Device-{did}"
+        calls.append((HA_DOMAIN, "device_get_info", {"id": int(did)}))
+        calls.append((HA_DOMAIN, "device_get_values", {"id": int(did)}))
+    for iid in iveo_ids:
+        calls.append((HA_DOMAIN, "iveo_get_type", {"id": int(iid)}))
+
+    results = ha_call_many(calls) if calls else []
+
+    rows = []
+    idx = 0
+    for did in commeo_ids:
+        info_resp = results[idx] if idx < len(results) else {}
+        vals = results[idx + 1] if idx + 1 < len(results) else {}
+        idx += 2
         dev_type_raw = info_resp.get("deviceType") or info_resp.get("type") or 0
-        dev_type = dev_type_map.get(int(dev_type_raw), f"TYPE_{dev_type_raw}")
         rows.append({
             "id": int(did),
-            "type": dev_type,
+            "type": DEV_TYPE_MAP.get(int(dev_type_raw), f"TYPE_{dev_type_raw}"),
             "typeId": dev_type_raw,
-            "deviceType": dev_type,
-            "name": name,
-            "info": info,
+            "deviceType": DEV_TYPE_MAP.get(int(dev_type_raw), f"TYPE_{dev_type_raw}"),
+            "name": info_resp.get("name") or info_resp.get("label") or f"Device-{did}",
+            "info": vals if isinstance(vals, dict) else {},
             "rawInfo": info_resp,
             "communicationType": "COMMEO",
         })
-    
-    # Get Iveo devices
-    iveo_ids_resp = ha_call(HA_DOMAIN, "iveo_get_ids") or {}
-    iveo_ids = iveo_ids_resp.get("ids", []) if isinstance(iveo_ids_resp, dict) else []
-    
-    # Add Iveo devices
     for iid in iveo_ids:
-        info_resp = ha_call(HA_DOMAIN, "iveo_get_type", {"id": int(iid)}) or {}
+        info_resp = results[idx] if idx < len(results) else {}
+        idx += 1
         dev_type_raw = info_resp.get("device_type") or info_resp.get("deviceType") or info_resp.get("type") or 0
-        dev_type = dev_type_map.get(int(dev_type_raw), f"TYPE_{dev_type_raw}")
-        name = info_resp.get("name") or info_resp.get("label") or f"Iveo-{iid}"
         rows.append({
             "id": int(iid),
-            "type": dev_type,
+            "type": DEV_TYPE_MAP.get(int(dev_type_raw), f"TYPE_{dev_type_raw}"),
             "typeId": dev_type_raw,
-            "deviceType": dev_type,
-            "name": name,
+            "deviceType": DEV_TYPE_MAP.get(int(dev_type_raw), f"TYPE_{dev_type_raw}"),
+            "name": info_resp.get("name") or info_resp.get("label") or f"Iveo-{iid}",
             "info": {"activity": info_resp.get("activity")},
             "rawInfo": info_resp,
             "communicationType": "IVEO",
         })
-    
+
     return jsonify(rows)
 
 
@@ -629,7 +656,16 @@ def device_scan_stop():
 @app.route("/api/devices/scan/result", methods=["GET"])
 def device_scan_result():
     resp = ha_call(HA_DOMAIN, "device_scan_result") or {}
-    return jsonify(resp)
+    found_ids = resp.get("foundIds") or []
+    scan_state = resp.get("scanState", 0)
+    # scanState 3=END_SUCCESS, 4=END_FAILED
+    finished = scan_state in (3, 4)
+    return jsonify({
+        **resp,
+        "found": bool(found_ids) and scan_state == 3,
+        "finished": finished,
+        "foundId": found_ids[0] if found_ids else None,
+    })
 
 
 @app.route("/api/devices/save", methods=["POST"])

@@ -248,7 +248,7 @@ async function ping() {
 async function resetGateway() {
   $q.dialog({ title: 'Reset Gateway', message: 'Reset the gateway? This will not delete devices.', cancel: true })
   .onOk(async () => {
-    try { await axios.get('/api/gateway/reset'); $q.notify({ color: 'positive', message: 'Gateway reset', icon: 'check' }); setTimeout(loadGatewayData, 2000) }
+    try { await axios.post('/api/gateway/reset'); $q.notify({ color: 'positive', message: 'Gateway reset', icon: 'check' }); setTimeout(loadGatewayData, 2000) }
     catch (e) { $q.notify({ color: 'negative', message: 'Reset failed', icon: 'error' }) }
   })
 }
@@ -264,7 +264,7 @@ async function iveoFactory() {
 async function factoryReset() {
   $q.dialog({ title: 'FACTORY RESET GATEWAY', message: 'This will DELETE ALL devices, groups, and settings! Are you absolutely sure?', cancel: true, persistent: true, ok: { label: 'FACTORY RESET', color: 'negative' } })
   .onOk(async () => {
-    try { await axios.get('/api/gateway/factoryReset'); $q.notify({ color: 'positive', message: 'Factory reset complete', icon: 'check' }); setTimeout(loadGatewayData, 3000) }
+    try { await axios.post('/api/gateway/factoryReset'); $q.notify({ color: 'positive', message: 'Factory reset complete', icon: 'check' }); setTimeout(loadGatewayData, 3000) }
     catch (e) { $q.notify({ color: 'negative', message: 'Failed', icon: 'error' }) }
   })
 }
