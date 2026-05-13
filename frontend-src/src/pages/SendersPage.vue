@@ -22,7 +22,8 @@
           <div v-else-if="teachResult">
             <div v-if="teachResult.found" class="text-positive">
               <q-icon name="check_circle" /> Sender learned!
-              <div class="q-mt-sm">Address: {{ teachResult.address }}</div>
+              <div class="q-mt-sm">ID: {{ teachResult.foundId }}</div>
+              <div v-if="teachResult.name" class="q-mt-xs">Name: {{ teachResult.name }}</div>
             </div>
             <div v-else class="text-negative">
               <q-icon name="cancel" /> No sender found.

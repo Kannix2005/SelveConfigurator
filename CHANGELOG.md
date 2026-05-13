@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.3.0] - 2026-05-13
+
+### Fixed
+- Sensor/Sender teach result: backend now normalizes `found`/`finished`/`foundId` fields (was returning raw `teach_state`/`found_id` that the frontend couldn't read)
+- Teach dialog: result display now shows correct `ID` instead of non-existent `address` field; sender teach also shows the sender name if available
+- SettingsPage: feature availability flags corrected — Sensor Simulation, Firmware Update, Position Save, and Forced Commands are all implemented and now shown as available
+
+### Improved
+- Sensors, Senders, and SenSim list loading parallelized via `asyncio.gather` (same optimization as devices in v2.2.0)
+- Logging level changed from DEBUG to INFO — no longer floods HA logs with every service call payload
+
 ## [2.2.0] - 2026-05-13
 
 ### Fixed

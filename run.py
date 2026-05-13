@@ -8,9 +8,9 @@ from flask import Flask, jsonify, request, send_from_directory
 from flask_cors import CORS
 import aiohttp
 
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.INFO)
 _LOGGER = logging.getLogger(__name__)
-_LOGGER.setLevel(logging.DEBUG)
+_LOGGER.setLevel(logging.INFO)
 
 app = Flask(__name__, static_folder="./frontend", static_url_path="")
 CORS(app, resources={r"/api/*": {"origins": "*"}})
@@ -726,16 +726,16 @@ def device_write_manual():
 def sensors_list():
     ids = ha_call(HA_DOMAIN, "sensor_get_ids") or {}
     id_list = ids.get("ids", []) if isinstance(ids, dict) else []
-    rows = []
+    calls = []
     for sid in id_list:
-        info = ha_call(HA_DOMAIN, "sensor_get_info", {"id": int(sid)}) or {}
-        vals = ha_call(HA_DOMAIN, "sensor_get_values", {"id": int(sid)}) or {}
-        rows.append({
-            "id": int(sid),
-            "name": info.get("name", f"Sensor-{sid}"),
-            "info": info,
-            "values": vals,
-        })
+        calls.append((HA_DOMAIN, "sensor_get_info", {"id": int(sid)}))
+        calls.append((HA_DOMAIN, "sensor_get_values", {"id": int(sid)}))
+    results = ha_call_many(calls) if calls else []
+    rows = []
+    for i, sid in enumerate(id_list):
+        info = results[i * 2] if i * 2 < len(results) else {}
+        vals = results[i * 2 + 1] if i * 2 + 1 < len(results) else {}
+        rows.append({"id": int(sid), "name": info.get("name", f"Sensor-{sid}"), "info": info, "values": vals})
     return jsonify(rows)
 
 
@@ -796,7 +796,15 @@ def sensor_teach_stop():
 @app.route("/api/sensors/teach/result", methods=["GET"])
 def sensor_teach_result():
     resp = ha_call(HA_DOMAIN, "sensor_teach_result") or {}
-    return jsonify(resp)
+    teach_state = resp.get("teach_state", 0)
+    found_id = resp.get("found_id")
+    # teach_state: 0=IDLE, 1=RUN, 2=END_SUCCESS
+    return jsonify({
+        **resp,
+        "found": teach_state == 2 and found_id is not None,
+        "finished": teach_state != 1,
+        "foundId": found_id,
+    })
 
 
 # -------------------- Sender endpoints --------------------
@@ -804,16 +812,16 @@ def sensor_teach_result():
 def senders_list():
     ids = ha_call(HA_DOMAIN, "sender_get_ids") or {}
     id_list = ids.get("ids", []) if isinstance(ids, dict) else []
-    rows = []
+    calls = []
     for sid in id_list:
-        info = ha_call(HA_DOMAIN, "sender_get_info", {"id": int(sid)}) or {}
-        vals = ha_call(HA_DOMAIN, "sender_get_values", {"id": int(sid)}) or {}
-        rows.append({
-            "id": int(sid),
-            "name": info.get("name", f"Sender-{sid}"),
-            "info": info,
-            "values": vals,
-        })
+        calls.append((HA_DOMAIN, "sender_get_info", {"id": int(sid)}))
+        calls.append((HA_DOMAIN, "sender_get_values", {"id": int(sid)}))
+    results = ha_call_many(calls) if calls else []
+    rows = []
+    for i, sid in enumerate(id_list):
+        info = results[i * 2] if i * 2 < len(results) else {}
+        vals = results[i * 2 + 1] if i * 2 + 1 < len(results) else {}
+        rows.append({"id": int(sid), "name": info.get("name", f"Sender-{sid}"), "info": info, "values": vals})
     return jsonify(rows)
 
 
@@ -876,7 +884,14 @@ def sender_teach_stop():
 @app.route("/api/senders/teach/result", methods=["GET"])
 def sender_teach_result():
     resp = ha_call(HA_DOMAIN, "sender_teach_result") or {}
-    return jsonify(resp)
+    teach_state = resp.get("teach_state", 0)
+    sender_id = resp.get("sender_id")
+    return jsonify({
+        **resp,
+        "found": teach_state == 2 and sender_id is not None,
+        "finished": teach_state != 1,
+        "foundId": sender_id,
+    })
 
 
 # -------------------- Sensor Simulation (SenSim) endpoints --------------------
@@ -884,16 +899,16 @@ def sender_teach_result():
 def sensim_list():
     ids = ha_call(HA_DOMAIN, "sensim_get_ids") or {}
     id_list = ids.get("ids", []) if isinstance(ids, dict) else []
-    rows = []
+    calls = []
     for sid in id_list:
-        config = ha_call(HA_DOMAIN, "sensim_get_config", {"id": int(sid)}) or {}
-        vals = ha_call(HA_DOMAIN, "sensim_get_values", {"id": int(sid)}) or {}
-        rows.append({
-            "id": int(sid),
-            "name": config.get("name", f"SenSim-{sid}"),
-            "activity": config.get("activity", 0),
-            "values": vals,
-        })
+        calls.append((HA_DOMAIN, "sensim_get_config", {"id": int(sid)}))
+        calls.append((HA_DOMAIN, "sensim_get_values", {"id": int(sid)}))
+    results = ha_call_many(calls) if calls else []
+    rows = []
+    for i, sid in enumerate(id_list):
+        cfg = results[i * 2] if i * 2 < len(results) else {}
+        vals = results[i * 2 + 1] if i * 2 + 1 < len(results) else {}
+        rows.append({"id": int(sid), "name": cfg.get("name", f"SenSim-{sid}"), "activity": cfg.get("activity", 0), "values": vals})
     return jsonify(rows)
 
 

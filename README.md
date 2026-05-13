@@ -1,6 +1,6 @@
 # Selve Configurator
 
-[![Version](https://img.shields.io/badge/version-2.2.0-blue.svg)](https://github.com/Kannix2005/SelveConfigurator/releases)
+[![Version](https://img.shields.io/badge/version-2.3.0-blue.svg)](https://github.com/Kannix2005/SelveConfigurator/releases)
 
 A Home Assistant add-on that provides a full-featured web interface for configuring and managing Selve USB-RF Gateway devices — equivalent to the Windows *CommeoUSBGatewayV2* desktop application.
 

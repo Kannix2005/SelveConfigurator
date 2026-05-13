@@ -112,10 +112,10 @@ const features = [
   { name: 'Sensors', icon: 'sensors', description: 'Sensor management and values', available: true },
   { name: 'Senders', icon: 'settings_remote', description: 'Sender management and teach', available: true },
   { name: 'Gateway Config', icon: 'router', description: 'LED, events, forwarding, resets', available: true },
-  { name: 'Sensor Simulation', icon: 'science', description: 'Virtual sensor simulation', available: false },
-  { name: 'Firmware Update', icon: 'system_update', description: 'Gateway firmware management', available: false },
-  { name: 'Position Save', icon: 'save', description: 'Save current position as Pos1/Pos2', available: false },
-  { name: 'Forced Commands', icon: 'priority_high', description: 'Bypass sensor safety locks', available: false },
+  { name: 'Sensor Simulation', icon: 'science', description: 'Virtual sensor simulation', available: true },
+  { name: 'Firmware Update', icon: 'system_update', description: 'Gateway firmware version and update', available: true },
+  { name: 'Position Save', icon: 'save', description: 'Save current position as Pos1/Pos2', available: true },
+  { name: 'Forced Commands', icon: 'priority_high', description: 'Bypass sensor safety locks', available: true },
   { name: 'XML Log', icon: 'code', description: 'View communication protocol log', available: true },
 ]
 
