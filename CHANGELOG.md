@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.4.1] - 2026-05-13
+
+### Fixed
+- Target Position "Go": position conversion was applying `* 65535` before calling `device_move_pos`, but `moveDevicePos` in python-selve-new already calls `percentageToValue()` internally — this caused a double conversion resulting in an out-of-range value and no movement. Now correctly inverts HA convention (0=closed, 100=open) to Selve convention (0=open, 100=closed) and passes 0–100 as expected by the service.
+
 ## [2.4.0] - 2026-05-13
 
 ### Fixed

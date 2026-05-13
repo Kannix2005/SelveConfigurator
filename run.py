@@ -1087,8 +1087,10 @@ def gateway_state():
 def device_move_pos(did: int):
     body = request.get_json(force=True) or {}
     position_pct = int(body.get("position", 0))
-    # HA service expects 0-65535 range; frontend sends 0-100 percent
-    position = int((position_pct / 100.0) * 65535)
+    # Frontend uses HA convention (0=closed, 100=open).
+    # moveDevicePos in python-selve-new expects Selve convention (0=open, 100=closed)
+    # and handles the 0-65535 conversion internally via percentageToValue().
+    position = 100 - position_pct
     command = body.get("command", "MANUAL")
     resp = ha_call(HA_DOMAIN, "device_move_pos", {"id": did, "position": position, "command": command, "type": "DEVICE"})
     return jsonify(resp or {"state": True})
